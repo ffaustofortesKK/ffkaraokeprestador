@@ -6,42 +6,66 @@ url = st.secrets["URL_SUPABASE"]
 key = st.secrets["KEY_SUPABASE"]
 supabase = create_client(url, key)
 
-st.set_page_config(page_title="Portal FF Karaoke", layout="wide")
+st.set_page_config(page_title="Painel FF Karaoke", layout="centered")
 
-# Inicialização de sessão
+# --- Lógica de Inicialização ---
 if "prestador" not in st.session_state:
     st.session_state["prestador"] = None
 
-# --- TELA DE REGISTRO E DEMONSTRAÇÃO ---
+# --- TELA DE CADASTRO / LOGIN ---
 if st.session_state["prestador"] is None:
-    st.title("🎤 Portal FF Karaoke - Teste Grátis")
-    st.write("Cadastre-se para solicitar acesso completo.")
+    st.title("🎤 Portal do Prestador")
+    st.subheader("Solicite seu acesso")
     
-    col1, col2 = st.columns(2)
-    with col1:
-        nome = st.text_input("Nome de Usuário:")
-        tel = st.text_input("TEL:")
-        if st.button("SOLICITAR ACESSO COMPLETO"):
-            # Lógica de inserção no banco
-            dados = {"nome_prestador": nome, "codigo_express": tel, "status_acesso": "pendente", "senha_acesso": "1234", "slug_unico": nome.lower()}
+    nome = st.text_input("Nome de Usuário:")
+    tel = st.text_input("TEL (Código Express):")
+    
+    if st.button("SOLICITAR PEDIDO"):
+        dados = {
+            "nome_prestador": nome,
+            "codigo_express": tel,
+            "slug_unico": nome.lower().replace(" ", "-"),
+            "senha_acesso": "1234",
+            "status_acesso": "pendente"
+        }
+        try:
             supabase.table("prestadores").insert(dados).execute()
-            st.session_state["prestador"] = {"status": "pendente", "nome": nome}
-            st.rerun()
+            st.success("Pedido enviado! Aguarde a aprovação.")
+        except:
+            st.error("Erro: Prestador já cadastrado.")
 
-    # DEMONSTRAÇÃO (Sempre visível para quem não logou)
-    st.subheader("Modo Demonstração (4 Músicas)")
-    demo_musicas = ["Música Demo 1", "Música Demo 2", "Música Demo 3", "Música Demo 4"]
-    for m in demo_musicas:
-        st.write(f"▶️ {m}")
-
-# --- TELA DO PAINEL (APÓS CADASTRO) ---
+# --- TELA DO PAINEL (CONFORME SUA IMAGEM) ---
 else:
     p = st.session_state["prestador"]
-    st.title(f"Bem-vindo, {p['nome']}!")
+    st.markdown("## 🎤 FILA DE REPRODUÇÃO - GRUPO FF KARAOKE")
     
-    if p['status'] == "pendente":
-        st.warning("⚠️ Você está no modo demonstração. Solicite a liberação ao Admin para ter acesso total.")
-        # Exibe apenas as 4 músicas demo
-    else:
-        st.success("✅ Acesso Total Liberado!")
-        # Exibe a lista completa de músicas
+    # Lógica de limite de músicas
+    limite = 4 if p['status'] == 'pendente' else None
+    
+    # Campo de Entrada (conforme imagem)
+    nome_cantor = st.text_input("Nome do Cantor:")
+    musica = st.text_input("Nome da Música (Pesquisa automática):")
+    
+    if st.button("★ ADICIONAR À LISTA LOCAL"):
+        # Aqui você insere na tabela de pedidos com id_prestador
+        st.write("Música adicionada!")
+
+    # Exibição da Fila
+    st.subheader("FILA DE REPRODUÇÃO ATUAL:")
+    query = supabase.table("pedidos_pendentes").select("*").eq("id_prestador", p['id'])
+    if limite:
+        query = query.limit(limite)
+    pedidos = query.execute().data
+    
+    for i, item in enumerate(pedidos):
+        st.write(f"{i+1}. {item.get('musica')}")
+
+    # Painel de Controle (Validar/Recusar)
+    st.divider()
+    st.write("### SISTEMA EM SINTONIA CLOUD")
+    col1, col2 = st.columns(2)
+    with col1: st.button("✅ Validar")
+    with col2: st.button("🗑️ Recusar")
+
+    if p['status'] == 'pendente':
+        st.warning("⚠️ MODO DEMONSTRAÇÃO: Apenas 4 músicas exibidas. Entre em contato para liberação total.")
