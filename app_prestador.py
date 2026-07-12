@@ -1,6 +1,4 @@
 import streamlit as st
-import qrcode
-from io import BytesIO
 from supabase import create_client
 
 # Configuração
@@ -8,75 +6,42 @@ url = st.secrets["URL_SUPABASE"]
 key = st.secrets["KEY_SUPABASE"]
 supabase = create_client(url, key)
 
-st.set_page_config(page_title="Grupo FF Karaoke", layout="centered")
+st.set_page_config(page_title="Portal FF Karaoke", layout="wide")
 
-# --- ESTILIZAÇÃO DO CABEÇALHO ---
-st.markdown("<h1 style='text-align: center;'>🎤 GRUPO FF KARAOKE</h1>", unsafe_allow_html=True)
-
-# Inicializar sessão
+# Inicialização de sessão
 if "prestador" not in st.session_state:
     st.session_state["prestador"] = None
 
-# --- LÓGICA DE LOGIN/REGISTRO ---
+# --- TELA DE REGISTRO E DEMONSTRAÇÃO ---
 if st.session_state["prestador"] is None:
-    tab1, tab2 = st.tabs(["Acesso Prestador", "Solicitar Cadastro"])
+    st.title("🎤 Portal FF Karaoke - Teste Grátis")
+    st.write("Cadastre-se para solicitar acesso completo.")
     
-    with tab1:
-        st.subheader("Login de Acesso")
-        nome_login = st.text_input("Nome de Usuário:")
-        senha_login = st.text_input("Senha:", type="password")
-        if st.button("ENTRAR"):
-            res = supabase.table("prestadores").select("*").eq("nome_prestador", nome_login).eq("senha_acesso", senha_login).execute()
-            if res.data:
-                p = res.data[0]
-                if p["status_acesso"] == "ativo":
-                    st.session_state["prestador"] = p
-                    st.rerun()
-                else:
-                    st.warning("Aguardando aprovação do Admin.")
-            else:
-                st.error("Credenciais inválidas.")
-
-    with tab2:
-        st.subheader("Solicitar Novo Cadastro")
-        nome_reg = st.text_input("Nome do Cantor:")
-        tel_reg = st.text_input("Seu Telefone/Código:")
-        if st.button("SOLICITAR PEDIDO"):
-            dados = {
-                "nome_prestador": nome_reg,
-                "codigo_express": tel_reg,
-                "slug_unico": nome_reg.lower().replace(" ", "-"),
-                "senha_acesso": "1234",
-                "status_acesso": "pendente"
-            }
+    col1, col2 = st.columns(2)
+    with col1:
+        nome = st.text_input("Nome de Usuário:")
+        tel = st.text_input("TEL:")
+        if st.button("SOLICITAR ACESSO COMPLETO"):
+            # Lógica de inserção no banco
+            dados = {"nome_prestador": nome, "codigo_express": tel, "status_acesso": "pendente", "senha_acesso": "1234", "slug_unico": nome.lower()}
             supabase.table("prestadores").insert(dados).execute()
-            st.success("Pedido enviado! Aguarde nossa liberação.")
+            st.session_state["prestador"] = {"status": "pendente", "nome": nome}
+            st.rerun()
 
-# --- PAINEL DO PRESTADOR (APÓS LOGIN) ---
+    # DEMONSTRAÇÃO (Sempre visível para quem não logou)
+    st.subheader("Modo Demonstração (4 Músicas)")
+    demo_musicas = ["Música Demo 1", "Música Demo 2", "Música Demo 3", "Música Demo 4"]
+    for m in demo_musicas:
+        st.write(f"▶️ {m}")
+
+# --- TELA DO PAINEL (APÓS CADASTRO) ---
 else:
     p = st.session_state["prestador"]
-    st.success(f"Bem-vindo, {p['nome_prestador']}!")
+    st.title(f"Bem-vindo, {p['nome']}!")
     
-    # UI do Painel (baseado na sua imagem)
-    st.text_input("Nome do Cantor:")
-    st.text_input("Nome da Música (Pesquisa automática):")
-    st.button("★ ADICIONAR À LISTA LOCAL", use_container_width=True)
-    
-    st.subheader("FILA DE REPRODUÇÃO ATUAL:")
-    st.container(height=150) # Área da fila
-    
-    col1, col2, col3 = st.columns(3)
-    col1.button("↑ Subir")
-    col2.button("↓ Descer")
-    col3.button("🗑️ Remover")
-    
-    st.button("▶ ANUNCIAR PRÓXIMO CANTOR", use_container_width=True)
-    
-    # Área Cloud
-    st.subheader("SISTEMA EM SINTONIA CLOUD")
-    st.container(height=100)
-    st.button("✅ Validar")
-    
-    if st.button("Sair"):
-        st.session_state["prestador"] = None
-        st.rerun()
+    if p['status'] == "pendente":
+        st.warning("⚠️ Você está no modo demonstração. Solicite a liberação ao Admin para ter acesso total.")
+        # Exibe apenas as 4 músicas demo
+    else:
+        st.success("✅ Acesso Total Liberado!")
+        # Exibe a lista completa de músicas
