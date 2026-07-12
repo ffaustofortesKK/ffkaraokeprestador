@@ -21,8 +21,20 @@ if st.session_state["prestador_id"] is None:
     senha = st.text_input("Senha:", type="password")
     
     if st.button("Entrar"):
-        # Consulta no banco verificando o prestador
-        res = supabase.table("prestadores").select("*").eq("nome_prestador", nome).eq("senha_acesso", senha).execute()
+        try:
+            # Consulta no banco
+            res = supabase.table("prestadores").select("*").eq("nome_prestador", nome).eq("senha_acesso", senha).execute()
+            
+            if res.data:
+                # ... (resto do seu código de sucesso) ...
+                prestador = res.data[0]
+                # ...
+            else:
+                st.error("Credenciais inválidas ou prestador não encontrado.")
+                
+        except Exception as e:
+            st.error(f"Erro no banco de dados: {str(e)}")
+            st.write("Verifique se o nome da tabela e das colunas estão exatamente iguais aos que estão no Supabase.")
         
         if res.data:
             prestador = res.data[0]
