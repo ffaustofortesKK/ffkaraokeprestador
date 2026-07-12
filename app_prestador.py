@@ -25,6 +25,17 @@ if st.session_state["prestador_id"] is None:
             # Consulta no banco
             res = supabase.table("prestadores").select("*").eq("nome_prestador", nome).eq("senha_acesso", senha).execute()
             
+            # Verificação segura
+            if hasattr(res, 'data') and res.data:
+                prestador = res.data[0]
+                # ... (resto do seu código)
+            else:
+                st.error("Credenciais inválidas ou prestador não encontrado.")
+                
+        except Exception as e:
+            st.error(f"Erro na conexão com o banco: {str(e)}")
+            st.write("Dica: Verifique se a tabela 'prestadores' existe no schema 'public' do Supabase.")
+            
             if res.data:
                 # ... (resto do seu código de sucesso) ...
                 prestador = res.data[0]
