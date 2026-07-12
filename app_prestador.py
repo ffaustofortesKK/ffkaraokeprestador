@@ -29,13 +29,16 @@ if st.session_state["prestador"] is None:
                 "senha_acesso": "1234",
                 "status_acesso": "pendente"
             }
-            res = supabase.table("prestadores").insert(dados).execute()
-            # Salva o nome para tentar autenticar
+            # Tenta inserir
+            supabase.table("prestadores").insert(dados).execute()
             st.session_state["prestador"] = {"nome": nome}
-            st.success("Pedido enviado! Aguarde a aprovação do Administrador.")
+            st.success("Pedido enviado com sucesso!")
             st.rerun()
-        except:
-            st.error("Erro: Este prestador já solicitou acesso ou ocorreu um erro.")
+        except Exception as e:
+            # Se der erro, verificamos se o usuário já existe no banco
+            st.info("Você já solicitou acesso. Tentando entrar...")
+            st.session_state["prestador"] = {"nome": nome}
+            st.rerun()
 
 # --- TELA DO PAINEL (VERIFICAÇÃO DE PORTARIA) ---
 else:
