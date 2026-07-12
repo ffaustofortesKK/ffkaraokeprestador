@@ -21,20 +21,28 @@ if st.session_state["prestador_id"] is None:
     senha = st.text_input("Senha:", type="password")
     
     if st.button("Entrar"):
-        # Consulta no banco
+        # Consulta no banco verificando o prestador
         res = supabase.table("prestadores").select("*").eq("nome_prestador", nome).eq("senha_acesso", senha).execute()
+        
         if res.data:
-            st.session_state["prestador_id"] = res.data[0]["id"]
-            st.session_state["nome"] = res.data[0]["nome_prestador"]
-            st.session_state["slug"] = res.data[0]["slug_unico"]
-            st.rerun()
+            prestador = res.data[0]
+            
+            # Verificação de status de acesso
+            if prestador.get("status_acesso") == "ativo":
+                st.session_state["prestador_id"] = prestador["id"]
+                st.session_state["nome"] = prestador["nome_prestador"]
+                st.session_state["slug"] = prestador["slug_unico"]
+                st.rerun()
+            elif prestador.get("status_acesso") == "pendente":
+                st.warning("Seu acesso ainda está em análise pelo administrador. Por favor, aguarde a confirmação do pagamento.")
+            else:
+                st.error("Acesso bloqueado. Contacte o suporte.")
         else:
             st.error("Credenciais inválidas!")
 else:
     st.success(f"Olá, {st.session_state['nome']}!")
     
     # Gerar link do prestador
-    # O cliente usará este link para pedir músicas
     url_cliente = f"https://ffkaraoke-cliente.streamlit.app/?prestador={st.session_state['slug']}"
     
     st.info(f"Seu link de pedidos: {url_cliente}")
