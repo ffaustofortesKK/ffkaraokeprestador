@@ -21,51 +21,65 @@ if st.session_state["prestador"] is None:
     tel = st.text_input("TEL (Código Express):")
     
     if st.button("SOLICITAR PEDIDO"):
-        dados = {
-            "nome_prestador": nome,
-            "codigo_express": tel,
-            "slug_unico": nome.lower().replace(" ", "-"),
-            "senha_acesso": "1234",
-            "status_acesso": "pendente"
-        }
         try:
-            supabase.table("prestadores").insert(dados).execute()
-            st.success("Pedido enviado! Aguarde a aprovação.")
+            dados = {
+                "nome_prestador": nome,
+                "codigo_express": tel,
+                "slug_unico": nome.lower().replace(" ", "-"),
+                "senha_acesso": "1234",
+                "status_acesso": "pendente"
+            }
+            res = supabase.table("prestadores").insert(dados).execute()
+            # Salva o nome para tentar autenticar
+            st.session_state["prestador"] = {"nome": nome}
+            st.success("Pedido enviado! Aguarde a aprovação do Administrador.")
+            st.rerun()
         except:
-            st.error("Erro: Prestador já cadastrado.")
+            st.error("Erro: Este prestador já solicitou acesso ou ocorreu um erro.")
 
-# --- TELA DO PAINEL (CONFORME SUA IMAGEM) ---
+# --- TELA DO PAINEL (VERIFICAÇÃO DE PORTARIA) ---
 else:
-    p = st.session_state["prestador"]
-    st.markdown("## 🎤 FILA DE REPRODUÇÃO - GRUPO FF KARAOKE")
+    # Passo 1: Busca o status real no banco de dados
+    nome_usuario = st.session_state["prestador"]["nome"]
+    res = supabase.table("prestadores").select("*").eq("nome_prestador", nome_usuario).execute()
     
-    # Lógica de limite de músicas
-    limite = 4 if p['status'] == 'pendente' else None
-    
-    # Campo de Entrada (conforme imagem)
-    nome_cantor = st.text_input("Nome do Cantor:")
-    musica = st.text_input("Nome da Música (Pesquisa automática):")
-    
-    if st.button("★ ADICIONAR À LISTA LOCAL"):
-        # Aqui você insere na tabela de pedidos com id_prestador
-        st.write("Música adicionada!")
+    if res.data:
+        p = res.data[0] # Dados atualizados do prestador
+        status = p['status_acesso']
+        
+        st.markdown(f"## 🎤 Bem-vindo, {p['nome_prestador']}")
+        
+        # Modo Demonstração vs Modo Completo
+        limite = 4 if status == 'pendente' else None
+        
+        if status == 'pendente':
+            st.warning("⚠️ MODO DEMONSTRAÇÃO: Apenas 4 músicas disponíveis. Aguarde a liberação do Admin.")
+        else:
+            st.success("✅ ACESSO COMPLETO LIBERADO")
 
-    # Exibição da Fila
-    st.subheader("FILA DE REPRODUÇÃO ATUAL:")
-    query = supabase.table("pedidos_pendentes").select("*").eq("id_prestador", p['id'])
-    if limite:
-        query = query.limit(limite)
-    pedidos = query.execute().data
-    
-    for i, item in enumerate(pedidos):
-        st.write(f"{i+1}. {item.get('musica')}")
+        # --- INTERFACE (Conforme sua imagem YYY.png) ---
+        nome_cantor = st.text_input("Nome do Cantor:")
+        musica = st.text_input("Nome da Música:")
+        
+        if st.button("★ ADICIONAR À LISTA LOCAL"):
+            st.write("Música adicionada à fila!")
 
-    # Painel de Controle (Validar/Recusar)
-    st.divider()
-    st.write("### SISTEMA EM SINTONIA CLOUD")
-    col1, col2 = st.columns(2)
-    with col1: st.button("✅ Validar")
-    with col2: st.button("🗑️ Recusar")
+        st.subheader("FILA DE REPRODUÇÃO ATUAL:")
+        query = supabase.table("pedidos_pendentes").select("*").eq("id_prestador", p['id'])
+        if limite:
+            query = query.limit(limite) # Aplica o limite se for pendente
+        
+        pedidos = query.execute().data
+        for i, item in enumerate(pedidos):
+            st.write(f"{i+1}. {item.get('musica', 'Música sem nome')}")
 
-    if p['status'] == 'pendente':
-        st.warning("⚠️ MODO DEMONSTRAÇÃO: Apenas 4 músicas exibidas. Entre em contato para liberação total.")
+        st.divider()
+        st.write("### SISTEMA EM SINTONIA CLOUD")
+        col1, col2 = st.columns(2)
+        with col1: st.button("✅ Validar")
+        with col2: st.button("🗑️ Recusar")
+    else:
+        st.error("Prestador não encontrado. Tente logar novamente.")
+        if st.button("Sair"):
+            st.session_state["prestador"] = None
+            st.rerun()
